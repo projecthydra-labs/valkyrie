@@ -5,7 +5,7 @@ module Valkyrie::Persistence::Memory
   # @note Documentation for persisters in general is maintained here.
   class Persister
     attr_reader :adapter
-    delegate :cache, to: :adapter
+    delegate :cache, :query_service, to: :adapter
 
     # @param adapter [Valkyrie::Persistence::Memory::MetadataAdapter] The memory adapter which
     #   holds the cache for this persister.
@@ -21,6 +21,7 @@ module Valkyrie::Persistence::Memory
     # @raise [Valkyrie::Persistence::StaleObjectError]
     def save(resource:)
       raise Valkyrie::Persistence::StaleObjectError, "The object #{resource.id} has been updated by another process." unless valid_lock?(resource)
+      raise Valkyrie::Persistence::ObjectNotFoundError, "The object #{resource.id} is previously persisted but not found at save time." unless valid_for_save?(resource)
 
       # duplicate the resource so we are not creating side effects on the caller's resource
       internal_resource = resource.dup
@@ -32,6 +33,15 @@ module Valkyrie::Persistence::Memory
       generate_lock_token(internal_resource)
       normalize_dates!(internal_resource)
       cache[internal_resource.id] = internal_resource
+    end
+
+    # return true if resource is
+    # persisted and found
+    # or
+    # not persisted
+    def valid_for_save?(resource)
+      return true unless resource.persisted? # a new resource
+      query_service.find_by(id: resource.id).present? # a persisted resource must be found
     end
 
     # Save a batch of resources.
