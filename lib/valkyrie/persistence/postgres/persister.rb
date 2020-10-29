@@ -20,6 +20,7 @@ module Valkyrie::Persistence::Postgres
     def save(resource:)
       orm_object = resource_factory.from_resource(resource: resource)
       orm_object.transaction do
+        raise Valkyrie::Persistence::ObjectNotFoundError, "The object #{resource.id} is previously persisted but not found at save time." if resource.persisted? && !orm_object.persisted?
         orm_object.save!
         if resource.id && resource.id.to_s != orm_object.id
           raise Valkyrie::Persistence::UnsupportedDatatype,
