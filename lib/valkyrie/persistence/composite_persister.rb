@@ -31,6 +31,8 @@ module Valkyrie::Persistence
       # Don't pass opt lock tokens to other persisters
       internal_resource = cached_resource.dup
       internal_resource.clear_optimistic_lock_token!
+      # Reset new_record to avoid not-saved checks.
+      internal_resource.new_record = resource.new_record
       rest.inject(internal_resource) { |m, persister| persister.save(resource: m) }
       # return the one with the desired opt lock token
       cached_resource
